@@ -1,13 +1,13 @@
 import RPi.GPIO as GPIO
-import time
 import sys
 import tty
 import termios
 
-# Use BCM GPIO numbering
+pinPump = 21  # change if needed
+
 GPIO.setmode(GPIO.BCM)
-relay_pin = 18
-GPIO.setup(relay_pin, GPIO.OUT)
+GPIO.setup(pinPump, GPIO.OUT)
+GPIO.output(pinPump, GPIO.LOW)
 
 def getch():
     fd = sys.stdin.fileno()
@@ -29,18 +29,18 @@ try:
         key = getch().lower()
 
         if key == 'o':
-            GPIO.output(relay_pin, GPIO.LOW)
+            GPIO.output(pinPump, GPIO.HIGH)
             pump_state = True
             print("\nPump ON")
 
         elif key == 'f':
-            GPIO.output(relay_pin, GPIO.HIGH)
+            GPIO.output(pinPump, GPIO.LOW)
             pump_state = False
             print("\nPump OFF")
 
         elif key == 't':
             pump_state = not pump_state
-            GPIO.output(relay_pin, pump_state)
+            GPIO.output(pinPump, pump_state)
             print(f"\nPump {'ON' if pump_state else 'OFF'}")
 
         elif key == 'q':
@@ -50,6 +50,6 @@ except KeyboardInterrupt:
     pass
 
 finally:
-    GPIO.output(relay_pin, GPIO.LOW)
+    GPIO.output(pinPump, GPIO.LOW)
     GPIO.cleanup()
     print("\nClean exit")
