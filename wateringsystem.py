@@ -8,7 +8,7 @@ import sys
 
 # Constants
 pinPump = 0                               # GPIO pin of pump
-needsWater = 630                          # sensor value for dry air
+needsWater = 4
 
 # general GPIO settings
 GPIO.setwarnings(False)                   # ignore warnings (unrelevant here)
@@ -36,9 +36,13 @@ f = open("/home/gawerra/scripts/WateringStats.txt", "a")
 currentTime = datetime.datetime.now() 
 f.write(str(currentTime) + ":\n")
 
-# 450 = 780 - 330, moisture in % 
-f.write("Current moisture: " + str(round((moisture-330) / 450 * 100, 2)) + 
-"% (" + str(moisture) + ")\n")
+print("Time: ", currentTime)
+
+# 450 = 780 - 330, moisture in %
+percentage = round(max(0, (moisture - 330) / 450 * 100), 2)
+f.write("Current moisture: " + str(percentage) + "% (" + str(moisture) + ")\n")
+
+print("Current moisture: " + str(percentage) + "% (" + str(moisture) + ")")
 
 # if plants are to dry, start pumping and record the moisture in file
 if moisture > needsWater: 
