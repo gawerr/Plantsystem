@@ -8,7 +8,8 @@ import sys
 
 # Constants
 pinPump = 0                               # GPIO pin of pump
-needsWater = 4
+needsWater = 8
+pumpstate = 0
 
 # general GPIO settings
 GPIO.setwarnings(False)                   # ignore warnings (unrelevant here)
@@ -27,33 +28,58 @@ def readData(channel):
       data = ((adc[1]&3) << 8) + adc[2]
       return data
 
-
-# read moisture data from channel 0
-moisture = readData(0)
+# Scale raw ADC (0-1023) to 1-10; 10 is highest moisture
+def moistureScale(raw_value, min_raw=0, max_raw=25, min_scaled=1, max_scaled=12):
+      if raw_value < min_raw:
+          raw_value = min_raw
+      if raw_value > max_raw:
+          raw_value = max_raw
+      scaled = ((raw_value - min_raw) / (max_raw - min_raw)) * (max_scaled - min_scaled) + min_scaled
+      return round(scaled, 1)
 
 # write time and current moisture in statistic file
-f = open("/home/gawerra/scripts/WateringStats.txt", "a") 
+f = open("/home/gawerra/scripts/PlantStats.csv", "a") 
 currentTime = datetime.datetime.now() 
-f.write(str(currentTime) + ":\n")
 
 print("Time: ", currentTime)
 
-# 450 = 780 - 330, moisture in %
-percentage = round(max(0, (moisture - 330) / 450 * 100), 2)
-f.write("Current moisture: " + str(percentage) + "% (" + str(moisture) + ")\n")
 
-print("Current moisture: " + str(percentage) + "% (" + str(moisture) + ")")
+# read moisture data from channel 0
+
+start_time = time.monotonic()
+raw_values = []
+duration = 30
+
+while time.monotonic() - start_time < duration:
+    raw = readData(0)
+    raw_values.append(raw)
+    time.sleep(0.1)  # sample every 100 ms
+
+if raw_values:
+    raw_avg = sum(raw_values) / len(raw_values)
+    moisture = moistureScale(raw_avg)
+    print("Raw moisture average:", round(raw_avg, 2), "Scaled moisture (1-12):", moisture)
+else:
+    print("No samples collected")    
+
 
 # if plants are to dry, start pumping and record the moisture in file
-if moisture > needsWater: 
-    t_end = time.time() + 4               # pump runs 4 seconds
+if moisture < needsWater: 
+    t_end = time.time() + 10               # pump runs 10 seconds
     
     # actual pumping
     while (time.time() < t_end):                 
-        GPIO.output(pinPump, GPIO.HIGH)               
+        # GPIO.output(pinPump, GPIO.HIGH)  
+        pumpstate = 1             
 
     GPIO.output(pinPump, GPIO.LOW)        # turn pump off
-    f.write("Plants got watered!\n")
+
+if pumpstate == 1:
+    watered = "yes"
+else:
+    watered = "no"
+
+f.write(f"Time: {currentTime}, Current moisture: {moisture}, Raw moisture: {raw}, Watered: {watered}")
 
 f.write("\n")                             # line break for next log entry
 f.close()                                 # close file
